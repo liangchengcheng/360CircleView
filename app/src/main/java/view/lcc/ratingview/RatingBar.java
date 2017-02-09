@@ -3,6 +3,7 @@ package view.lcc.ratingview;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.text.TextPaint;
 
@@ -53,12 +54,12 @@ public class RatingBar {
 
     private RectF outlineOval, ratingOval, shadowOval;
 
-    public RatingBar(int curRate,String title){
+    public RatingBar(int curRate, String title) {
         this.mCurRate = curRate;
         this.mTitle = title;
 
         //初始化要使用笔
-        outlinePaint  = new Paint();
+        outlinePaint = new Paint();
         ratedPaint = new Paint();
         unRatedPaint = new Paint();
         shadowPaint = new Paint();
@@ -67,7 +68,7 @@ public class RatingBar {
         setRatingBarColor(Color.WHITE);
     }
 
-    protected void init(){
+    protected void init() {
         initRatingBar();
         initOval();
         initPaint();
@@ -139,8 +140,78 @@ public class RatingBar {
         shadowOval.bottom = mCenterY + shadowRadius;
     }
 
-    private void initRatingBar(){
+    private void initRatingBar() {
+        rates = new ArrayList<>();
+        float itemSweepAngle;
+        if (isSingle) {
+            itemSweepAngle = (mSweepAngle - (ITEM_OFFSET * (maxRate))) / maxRate;
+        } else {
+            itemSweepAngle = (mSweepAngle - (ITEM_OFFSET * (maxRate - 1))) / maxRate;
+        }
 
+        for (int i = 0; i < maxRate; i++) {
+            float itemStartAngle = mStartAngle + i * (itemSweepAngle + ITEM_OFFSET);
+            rates.add(new Rate(itemStartAngle, itemSweepAngle));
+        }
+    }
+
+    protected void drawTitle(Canvas canvas, int alpha) {
+        if (alpha > 0 && isShowTitle) {
+            Path path = new Path();
+            float circumference = (float) (Math.PI * (outlineOval.right - outlineOval.left));
+            float textAngle = (360 / circumference) * titlePaint.measureText(getTitle());
+
+            float startAngle = mStartAngle + mSweepAngle / 2 - textAngle / 2;
+
+            if (isSingle) {
+                // when single, draw 360 the path will be a circle
+                path.addArc(outlineOval, startAngle - mSweepAngle / 2, mSweepAngle / 2);
+            } else {
+                path.addArc(outlineOval, startAngle, mSweepAngle);
+            }
+
+            titlePaint.setAlpha(alpha);
+            canvas.drawTextOnPath(mTitle, path, 0, textWidth / 3, titlePaint);
+        }
+    }
+
+    protected void drawOutLine(Canvas canvas) {
+
+        float circumference = (float) (Math.PI * (outlineOval.right - outlineOval.left));
+        float textAngle = (360 / circumference) * titlePaint.measureText(getTitle());
+
+        float sweepAngle = (mSweepAngle - textAngle - 1 - 1) / 2;
+
+        if (isShowTitle) {
+            // text left
+            float leftStartAngle = mStartAngle;
+            canvas.drawArc(outlineOval, leftStartAngle, sweepAngle, false, outlinePaint);
+            // text right
+            float rightStartAngle = mStartAngle + mSweepAngle - sweepAngle;
+            canvas.drawArc(outlineOval, rightStartAngle, sweepAngle, false, outlinePaint);
+        } else {
+            canvas.drawArc(outlineOval, mStartAngle, mSweepAngle, false, outlinePaint);
+        }
+    }
+
+    protected void drawUnRate(Canvas canvas) {
+        for (Rate arc : rates) {
+            arc.drawArc(canvas, ratingOval, unRatedPaint);
+        }
+    }
+
+    protected void drawRate(Canvas canvas, int index) {
+        if (index >= maxRate) {
+            return;
+        }
+        Rate arc = rates.get(index);
+        arc.drawArc(canvas, ratingOval, ratedPaint);
+    }
+
+    protected void drawShadow(Canvas canvas) {
+        for (Rate arc : rates) {
+            arc.drawArc(canvas, shadowOval, shadowPaint);
+        }
     }
 
     //设置以下的属性
